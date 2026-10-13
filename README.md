@@ -1,5 +1,7 @@
 # BC Hydro for Home Assistant
 
+<img src="custom_components/bchydro/brand/icon.png" width="96" alt="BCE icon">
+
 A custom integration that logs in to your BC Hydro account (app.bchydro.com) once a day at 1 am and exposes yesterday's electricity use and cost, plus billing-period totals, as Home Assistant sensors.
 
 BC Hydro has no public API for customers, so this scrapes the same data the website's consumption page shows. It only runs once a day.
@@ -17,6 +19,7 @@ BC Hydro has no public API for customers, so this scrapes the same data the webs
 | --- | --- |
 | Yesterday consumption | kWh for the most recent day BC Hydro has posted (normally yesterday). Attributes: `date`, `last_7_days` |
 | Yesterday cost | Estimated cost of that day, in CAD |
+| 2 to 7 days ago consumption / cost | One kWh and one CAD sensor for each of the six days before yesterday, each with a `date` attribute, so you get the last 7 days day by day |
 | Consumption this billing period | kWh so far this billing period (`total_increasing`, usable in the Energy dashboard) |
 | Cost this billing period | CAD so far this billing period |
 | Projected consumption / Projected cost | BC Hydro's estimate for the full billing period |
@@ -25,6 +28,10 @@ BC Hydro has no public API for customers, so this scrapes the same data the webs
 | Last bill amount | Most recent bill amount, with `bill_date` attribute (if the page provides it) |
 
 Costs are BC Hydro's estimates and exclude taxes and fees, the same as on the website.
+
+## Icon
+
+The BCE icon ships inside the integration (`custom_components/bchydro/brand/`). Home Assistant 2026.3 and newer show it on the integrations page; older versions show a generic icon.
 
 ## Schedule
 

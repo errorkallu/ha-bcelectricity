@@ -50,6 +50,9 @@ async def test_config_flow_bad_then_good(hass: HomeAssistant, fake_bchydro):
     yc = hass.states.get("sensor.bc_hydro_yesterday_consumption")
     assert yc.attributes["date"] == "2026-10-12"
     assert hass.states.get("sensor.bc_hydro_yesterday_cost").state == "1.93"
+    two = hass.states.get("sensor.bc_hydro_2_days_ago_consumption")
+    assert two.state == "15.19" and two.attributes["date"] == "2026-10-11"
+    assert hass.states.get("sensor.bc_hydro_2_days_ago_cost").state == "2.03"
     assert hass.states.get("sensor.bc_hydro_projected_cost").state == "114.0"
     assert hass.states.get("sensor.bc_hydro_billing_period_end").state == "2026-11-09"
     assert hass.states.get("sensor.bc_hydro_last_bill_amount").state == "163.54"

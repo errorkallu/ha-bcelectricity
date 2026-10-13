@@ -23,6 +23,11 @@ URL_LOGIN = f"{BASE_URL}/sso/UI/Login"
 URL_LOGIN_GOTO = f"{BASE_URL}:443/BCHCustomerPortal/web/login.html"
 URL_GET_ACCOUNTS = f"{BASE_URL}/BCHCustomerPortal/web/getAccounts.html"
 URL_ACCOUNTS_OVERVIEW = f"{BASE_URL}/BCHCustomerPortal/web/accountsOverview.html"
+URL_BILLING_SUMMARY = f"{BASE_URL}/BCHCustomerPortal/web/ajaxBillingSummary.html"
+URL_CONSUMPTION_PAGE = (
+    f"{BASE_URL}/evportlet/SystemServices/main"
+    "?system:runTemplate=html/view/residential/ConsumptionOverview.xml"
+)
 URL_ACCOUNT_JSON = f"{BASE_URL}/evportlet/web/global-data.html"
 URL_CONSUMPTION_XML = f"{BASE_URL}/evportlet/web/consumption-data.html"
 
@@ -123,19 +128,13 @@ def _strip_tags(html: str) -> str:
     return re.sub(r"\s+", " ", text)
 
 
-def _parse_overview(html: str, data: BCHydroData) -> None:
-    """Best-effort read of balance and last bill from the account summary page."""
-    text = _strip_tags(html)
-    match = re.search(r"Balance\s*:?\s*(-?\$\s?-?[\d,]+\.\d{2})", text)
-    if match:
-        data.balance = _to_float(match[1].replace(" ", ""))
-    match = re.search(
-        r"bill amount for\s+([A-Z][a-z]{2,8}\.? \d{1,2},? \d{4})\s*:?\s*\$\s?([\d,]+\.\d{2})",
-        text,
-    )
-    if match:
-        data.last_bill_date = match[1]
-        data.last_bill_amount = _to_float(match[2])
+def _csrf_headers(csrf: str) -> dict[str, str]:
+    """Headers the portal's jQuery adds to every POST (see security.js)."""
+    return {
+        "bchydroparam": csrf,
+        "X-CSRF-Token": csrf,
+        "X-Requested-With": "XMLHttpRequest",
+    }
 
 
 class BCHydroApi:
@@ -155,7 +154,7 @@ class BCHydroApi:
         async with self._session() as session:
             overview_html, csrf = await self._login(session)
             data = BCHydroData()
-            _parse_overview(overview_html, data)
+            await self._get_billing_summary(session, overview_html, csrf, data)
             account = await self._get_account(session, data)
             await self._get_consumption(session, account, csrf, data)
             return data
@@ -163,6 +162,7 @@ class BCHydroApi:
     def _session(self) -> aiohttp.ClientSession:
         return aiohttp.ClientSession(
             cookie_jar=aiohttp.CookieJar(),
+            trust_env=True,
             headers={"User-Agent": USER_AGENT},
             timeout=TIMEOUT,
         )
@@ -188,6 +188,10 @@ class BCHydroApi:
         if resp.status >= 400:
             raise BCHydroError(f"Login failed with HTTP {resp.status}")
 
+        # A rejected login re-renders the sign-in form (which has its own token).
+        if 'id="login-form"' in html:
+            raise BCHydroAuthError("BC Hydro rejected the username or password")
+
         csrf = _find_csrf(html)
         if not csrf:
             if re.search(r"(?i)password|sign in|log in", _strip_tags(html)[:5000]):
@@ -208,6 +212,40 @@ class BCHydroApi:
 
         return html, csrf
 
+    async def _get_billing_summary(
+        self,
+        session: aiohttp.ClientSession,
+        overview_html: str,
+        csrf: str,
+        data: BCHydroData,
+    ) -> None:
+        """Balance and last bill; the summary page loads these by AJAX."""
+        match = re.search(r'"accountNumber"\s*:\s*"(\d+)"', overview_html)
+        if not match:
+            _LOGGER.debug("No account number on the overview page; skipping balance")
+            return
+        resp = await session.post(
+            URL_BILLING_SUMMARY,
+            data={"accountNumber": match[1], "bchydroparam": csrf},
+            headers=_csrf_headers(csrf),
+        )
+        try:
+            summary = await resp.json(content_type=None)
+        except ValueError:
+            _LOGGER.debug("Billing summary was not JSON (HTTP %s)", resp.status)
+            return
+        if not summary:
+            return
+        balance = _to_float(summary.get("balance"))
+        if balance is not None and summary.get("creditFlag") == "CR":
+            balance = -balance
+        data.balance = balance
+        amount = _to_float(summary.get("lastBillingAmount"))
+        if amount is not None and summary.get("lastBillSign") == "CR":
+            amount = -amount
+        data.last_bill_amount = amount
+        data.last_bill_date = summary.get("lastBillingDate")
+
     async def _get_account(
         self, session: aiohttp.ClientSession, data: BCHydroData
     ) -> dict[str, Any]:
@@ -218,13 +256,16 @@ class BCHydroApi:
             raise BCHydroError("Account details were not JSON; session expired?") from err
 
         data.account_number = account.get("evpAccount")
-        data.rate_group = account.get("evpRateGroup")
+        data.rate_group = account.get("evpRateGroup") or account.get("ratePlanType")
         data.billing_start = _to_date(account.get("evpBillingStart"))
         data.billing_end = _to_date(account.get("evpBillingEnd"))
         data.consumption_to_date = _to_float(account.get("evpConsToDate"))
         data.cost_to_date = _to_float(account.get("evpCostToDate"))
         data.projected_consumption = _to_float(account.get("evpEstConsCurPeriod"))
         data.projected_cost = _to_float(account.get("evpEstCostCurPeriod"))
+        today = _to_date(account.get("evpCurrentDateTime"))
+        if today and data.billing_start:
+            data.days_since_billing = (today - data.billing_start).days
         return account
 
     async def _get_consumption(
@@ -234,21 +275,26 @@ class BCHydroApi:
         csrf: str,
         data: BCHydroData,
     ) -> None:
+        # The data endpoints only answer with the token issued by the
+        # consumption page itself, not the one from the login page.
+        resp = await session.get(URL_CONSUMPTION_PAGE)
+        csrf = _find_csrf(await resp.text()) or csrf
         resp = await session.post(
             URL_CONSUMPTION_XML,
             data={
-                "Slid": account.get("evpSlid"),
-                "Account": account.get("evpAccount"),
-                "ChartType": "column",
-                "Granularity": "daily",
-                "Overlays": "none",
-                "DateRange": "currentBill",
                 "StartDateTime": account.get("evpBillingStart"),
                 "EndDateTime": account.get("evpBillingEnd"),
-                "RateGroup": account.get("evpRateGroup"),
+                "DateRange": "currentBill",
+                "Granularity": "daily",
+                "IncludeMeters": "all" if account.get("hasEV") else "",
+                "Overlays": "none",
+                "UserClick": "",
+                "IsMobile": "false",
             },
-            headers={"bchydroparam": csrf},
+            headers={**_csrf_headers(csrf), "Referer": URL_CONSUMPTION_PAGE},
         )
+        if resp.status in (401, 403):
+            raise BCHydroError(f"Consumption data refused (HTTP {resp.status})")
         text = await resp.text()
         try:
             root = ET.fromstring(text)
@@ -269,12 +315,3 @@ class BCHydroApi:
                 )
             break  # first series is the current period; others are overlays
         data.daily.sort(key=lambda r: r.day)
-
-        rates = root.find(".//Rates")
-        if rates is not None:
-            days = _to_float(rates.get("daysSince"))
-            data.days_since_billing = int(days) if days is not None else None
-            data.consumption_to_date = _to_float(rates.get("cons2date")) or data.consumption_to_date
-            data.cost_to_date = _to_float(rates.get("cost2date")) or data.cost_to_date
-            data.projected_consumption = _to_float(rates.get("estCons")) or data.projected_consumption
-            data.projected_cost = _to_float(rates.get("estCost")) or data.projected_cost

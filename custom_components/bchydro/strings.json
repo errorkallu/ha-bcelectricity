@@ -35,6 +35,42 @@
       "yesterday_cost": {
         "name": "Yesterday cost"
       },
+      "days_ago_2_consumption": {
+        "name": "2 days ago consumption"
+      },
+      "days_ago_2_cost": {
+        "name": "2 days ago cost"
+      },
+      "days_ago_3_consumption": {
+        "name": "3 days ago consumption"
+      },
+      "days_ago_3_cost": {
+        "name": "3 days ago cost"
+      },
+      "days_ago_4_consumption": {
+        "name": "4 days ago consumption"
+      },
+      "days_ago_4_cost": {
+        "name": "4 days ago cost"
+      },
+      "days_ago_5_consumption": {
+        "name": "5 days ago consumption"
+      },
+      "days_ago_5_cost": {
+        "name": "5 days ago cost"
+      },
+      "days_ago_6_consumption": {
+        "name": "6 days ago consumption"
+      },
+      "days_ago_6_cost": {
+        "name": "6 days ago cost"
+      },
+      "days_ago_7_consumption": {
+        "name": "7 days ago consumption"
+      },
+      "days_ago_7_cost": {
+        "name": "7 days ago cost"
+      },
       "consumption_to_date": {
         "name": "Consumption this billing period"
       },

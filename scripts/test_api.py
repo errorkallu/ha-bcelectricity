@@ -12,6 +12,7 @@ import importlib.util
 import logging
 import os
 import pathlib
+import sys
 
 logging.basicConfig(level=logging.DEBUG if os.getenv("DEBUG") else logging.INFO)
 
@@ -19,6 +20,7 @@ logging.basicConfig(level=logging.DEBUG if os.getenv("DEBUG") else logging.INFO)
 _path = pathlib.Path(__file__).parents[1] / "custom_components/bchydro/api.py"
 _spec = importlib.util.spec_from_file_location("bchydro_api", _path)
 api = importlib.util.module_from_spec(_spec)
+sys.modules[_spec.name] = api  # dataclasses need the module registered
 _spec.loader.exec_module(api)
 
 

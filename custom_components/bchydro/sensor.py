@@ -46,6 +46,35 @@ def _latest_attrs(data: BCHydroData) -> dict[str, Any]:
     }
 
 
+def _day(data: BCHydroData, days_back: int):
+    """Reading for the Nth most recent day (1 = latest, normally yesterday)."""
+    return data.daily[-days_back] if len(data.daily) >= days_back else None
+
+
+def _past_day_sensors(days_back: int) -> tuple[BCHydroSensorDescription, ...]:
+    label = f"days_ago_{days_back}"
+    return (
+        BCHydroSensorDescription(
+            key=f"{label}_consumption",
+            translation_key=f"{label}_consumption",
+            native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+            device_class=SensorDeviceClass.ENERGY,
+            suggested_display_precision=2,
+            value_fn=lambda d: r.kwh if (r := _day(d, days_back)) else None,
+            attrs_fn=lambda d: {"date": r.day.isoformat() if (r := _day(d, days_back)) else None},
+        ),
+        BCHydroSensorDescription(
+            key=f"{label}_cost",
+            translation_key=f"{label}_cost",
+            native_unit_of_measurement=CAD,
+            device_class=SensorDeviceClass.MONETARY,
+            suggested_display_precision=2,
+            value_fn=lambda d: r.cost if (r := _day(d, days_back)) else None,
+            attrs_fn=lambda d: {"date": r.day.isoformat() if (r := _day(d, days_back)) else None},
+        ),
+    )
+
+
 SENSORS: tuple[BCHydroSensorDescription, ...] = (
     BCHydroSensorDescription(
         key="yesterday_consumption",
@@ -65,6 +94,8 @@ SENSORS: tuple[BCHydroSensorDescription, ...] = (
         value_fn=lambda d: d.latest.cost if d.latest else None,
         attrs_fn=lambda d: {"date": d.latest.day.isoformat() if d.latest else None},
     ),
+    # One kWh and one cost sensor for each of the 6 days before yesterday.
+    *(desc for n in range(2, 8) for desc in _past_day_sensors(n)),
     BCHydroSensorDescription(
         key="consumption_to_date",
         translation_key="consumption_to_date",
