@@ -58,7 +58,7 @@ async def test_config_flow_bad_then_good(hass: HomeAssistant, fake_bchydro):
     assert hass.states.get("sensor.bc_hydro_last_bill_amount").state == "163.54"
 
 
-async def test_refreshes_daily_at_1am(hass: HomeAssistant, freezer: FrozenDateTimeFactory):
+async def test_refreshes_daily_at_1am_and_8am(hass: HomeAssistant, freezer: FrozenDateTimeFactory):
     await hass.config.async_set_time_zone("America/Vancouver")
     freezer.move_to("2026-10-13 14:00:00-07:00")
     with patch.object(BCHydroApi, "async_fetch", return_value=BCHydroData()) as fetch:
@@ -85,6 +85,13 @@ async def test_refreshes_daily_at_1am(hass: HomeAssistant, freezer: FrozenDateTi
         async_fire_time_changed(hass, now)
         await hass.async_block_till_done()
         assert fetch.call_count == 2
+
+        # ...and a second one at 8 am in case the reading was posted late.
+        now = dt_util.parse_datetime("2026-10-14 08:00:00-07:00")
+        freezer.move_to(now)
+        async_fire_time_changed(hass, now)
+        await hass.async_block_till_done()
+        assert fetch.call_count == 3
 
 
 async def test_failed_1am_scrape_retries(hass: HomeAssistant, freezer: FrozenDateTimeFactory):

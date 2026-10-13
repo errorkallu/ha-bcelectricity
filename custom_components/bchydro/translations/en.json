@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "BC Hydro login",
-        "description": "Enter the email and password you use at app.bchydro.com. Data is fetched once a day at 1 am.",
+        "description": "Enter the email and password you use at app.bchydro.com. Data is fetched daily at 1 am and 8 am.",
         "data": {
           "username": "Email",
           "password": "Password"

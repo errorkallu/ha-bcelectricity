@@ -1,4 +1,4 @@
-"""Fetches BC Hydro data once a day at 1 am."""
+"""Fetches BC Hydro data daily at 1 am and 8 am."""
 
 from __future__ import annotations
 
@@ -12,13 +12,13 @@ from homeassistant.helpers.event import async_call_later, async_track_time_chang
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import BCHydroApi, BCHydroAuthError, BCHydroData, BCHydroError
-from .const import DOMAIN, MAX_RETRIES, RETRY_DELAY_MINUTES, UPDATE_HOUR, UPDATE_MINUTE
+from .const import DOMAIN, MAX_RETRIES, RETRY_DELAY_MINUTES, UPDATE_HOURS, UPDATE_MINUTE
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class BCHydroCoordinator(DataUpdateCoordinator[BCHydroData]):
-    """Scrapes on setup, then every day at 1 am (no interval polling)."""
+    """Scrapes on setup, then every day at 1 am and 8 am (no interval polling)."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, api: BCHydroApi) -> None:
         super().__init__(
@@ -41,12 +41,12 @@ class BCHydroCoordinator(DataUpdateCoordinator[BCHydroData]):
 
     @callback
     def start_daily_schedule(self) -> None:
-        """Register the 1 am trigger; it is removed when the entry unloads."""
+        """Register the daily triggers; they are removed when the entry unloads."""
         self.config_entry.async_on_unload(
             async_track_time_change(
                 self.hass,
                 self._scheduled_refresh,
-                hour=UPDATE_HOUR,
+                hour=UPDATE_HOURS,
                 minute=UPDATE_MINUTE,
                 second=0,
             )

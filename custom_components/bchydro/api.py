@@ -150,7 +150,7 @@ class BCHydroApi:
             await self._login(session)
 
     async def async_fetch(self) -> BCHydroData:
-        """Log in fresh and pull everything. Called once a day."""
+        """Log in fresh and pull everything. Called at 1 am and 8 am."""
         async with self._session() as session:
             overview_html, csrf = await self._login(session)
             data = BCHydroData()

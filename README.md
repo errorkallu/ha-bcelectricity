@@ -2,9 +2,9 @@
 
 <img src="custom_components/bchydro/brand/icon.png" width="96" alt="BCE icon">
 
-A custom integration that logs in to your BC Hydro account (app.bchydro.com) once a day at 1 am and exposes yesterday's electricity use and cost, plus billing-period totals, as Home Assistant sensors.
+A custom integration that logs in to your BC Hydro account (app.bchydro.com) at 1 am and 8 am each day and exposes yesterday's electricity use and cost, plus billing-period totals, as Home Assistant sensors.
 
-BC Hydro has no public API for customers, so this scrapes the same data the website's consumption page shows. It only runs once a day.
+BC Hydro has no public API for customers, so this scrapes the same data the website's consumption page shows. It only runs twice a day.
 
 ## Install with HACS
 
@@ -35,7 +35,7 @@ The BCE icon ships inside the integration (`custom_components/bchydro/brand/`). 
 
 ## Schedule
 
-Data is fetched when the integration starts and then every day at 1:00 am (Home Assistant's time zone). If the 1 am fetch fails, it retries every hour up to three times. To fetch on demand, call `homeassistant.update_entity` on any BC Hydro sensor.
+Data is fetched when the integration starts and then every day at 1:00 am and 8:00 am (Home Assistant's time zone). BC Hydro doesn't post yesterday's reading at a fixed time, so the 8 am fetch picks it up if it wasn't there at 1 am. If a scheduled fetch fails, it retries every hour up to three times. To fetch on demand, call `homeassistant.update_entity` on any BC Hydro sensor.
 
 ## Troubleshooting
 
