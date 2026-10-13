@@ -1,0 +1,64 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "BC Hydro login",
+        "description": "Enter the email and password you use at app.bchydro.com. Data is fetched once a day at 1 am.",
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-enter BC Hydro password",
+        "description": "The password for {username} no longer works.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "BC Hydro rejected that email or password.",
+      "cannot_connect": "Could not reach BC Hydro, or its site has changed. Check the Home Assistant log.",
+      "unknown": "Unexpected error. Check the Home Assistant log."
+    },
+    "abort": {
+      "already_configured": "This BC Hydro login is already set up.",
+      "reauth_successful": "Password updated."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "yesterday_consumption": {
+        "name": "Yesterday consumption"
+      },
+      "yesterday_cost": {
+        "name": "Yesterday cost"
+      },
+      "consumption_to_date": {
+        "name": "Consumption this billing period"
+      },
+      "cost_to_date": {
+        "name": "Cost this billing period"
+      },
+      "projected_consumption": {
+        "name": "Projected consumption"
+      },
+      "projected_cost": {
+        "name": "Projected cost"
+      },
+      "billing_period_start": {
+        "name": "Billing period start"
+      },
+      "billing_period_end": {
+        "name": "Billing period end"
+      },
+      "balance": {
+        "name": "Balance"
+      },
+      "last_bill_amount": {
+        "name": "Last bill amount"
+      }
+    }
+  }
+}
